@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1410">
+<title>Life OS Dashboard</title>
+<style>
+  :root {
+    --bg: #0b1410;        /* near-black green */
+    --card: #12211a;      /* deep green card */
+    --line: #1e332a;      /* card borders / dividers */
+    --ink: #d9e8de;       /* primary text */
+    --muted: #7da28d;     /* secondary text */
+    --faint: #52735f;     /* axis labels, silent days */
+    --accent: #5ee6a0;    /* score / bars */
+    --body: #ff9270;      /* category: body */
+    --sustain: #45d6a8;   /* category: sustain */
+    --future: #8fa7ff;    /* category: future */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 12px;
+    background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .wrap { max-width: 430px; margin: 0 auto; }
+  .meta { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px; margin-bottom: 12px;
+  }
+  .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .score { font-size: 26px; font-weight: 800; color: var(--accent); }
+  .task { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .task:last-child { border-bottom: none; }
+  .task.done { text-decoration: line-through; color: var(--faint); }
+  .dot { margin-right: 6px; }
+  .streaks { display: flex; margin: 10px 0; }
+  .streak { text-align: center; flex: 1; }
+  .streak .n { font-size: 22px; font-weight: 700; }
+  .streak .l { font-size: 11px; color: var(--muted); }
+  .empty { color: var(--muted); font-size: 13px; padding: 16px 0; }
+  .legend { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .legend .sw { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin: 0 4px 0 10px; }
+  svg { display: block; width: 100%; }
+  svg text { font-family: system-ui, sans-serif; }
+  b { font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="meta" id="meta"></div>
+
+  <div class="card"><!-- 1 — TODAY -->
+    <div class="row"><b id="todayLabel"></b><span class="score" id="todayScore"></span></div>
+    <div id="tasks"></div>
+  </div>
+
+  <div class="card"><!-- 2 — MOMENTUM -->
+    <b>Momentum</b>
+    <div class="streaks" id="streaks"></div>
+    <div id="barChart"></div>
+  </div>
+
+  <div class="card"><!-- 3 — STATE -->
+    <b>State — mood &amp; energy (30d)</b>
+    <div id="lineChart"></div>
+    <div class="legend">
+      <span class="sw" style="background:var(--future)"></span>mood
+      <span class="sw" style="background:var(--body)"></span>energy (dashed)
+    </div>
+  </div>
+
+  <div class="card"><!-- 4 — DIRECTION -->
+    <b>Direction — Harada</b>
+    <div id="radarChart"></div>
+  </div>
+</div>
+
+<!-- data.js declares `const DATA` and is overwritten by /evening each night -->
+<script src="data.js"></script>
+<script>
+const CAT = { body: "var(--body)", sustain: "var(--sustain)", future: "var(--future)" };
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+// header + today
+document.getElementById("meta").textContent = "Life OS · updated " + DATA.generated.replace("T", " ");
+document.getElementById("todayLabel").textContent = "Today · " + DATA.today.date;
+document.getElementById("todayScore").textContent = DATA.today.score + "%";
+document.getElementById("tasks").innerHTML = DATA.today.tasks.map(t =>
+  `<div class="task${t.done ? " done" : ""}"><span class="dot" style="color:${CAT[t.c] || "var(--muted)"}">●</span>${esc(t.t)}</div>`
+).join("");
+
+// streaks
+document.getElementById("streaks").innerHTML =
+  [["check-in", "checkin"], ["body", "body"], ["sustain", "sustain"], ["future", "future"]].map(([label, k]) => {
+    const s = DATA.streaks[k];
+    return `<div class="streak"><div class="n">${s.current > 0 ? "🔥" : "·"} ${s.current}</div><div class="l">${label} · best ${s.best}</div></div>`;
+  }).join("");
+
+// bar chart — last 14 days of scores
+(function () {
+  const days = DATA.days.slice(-14);
+  const W = 400, H = 110, PB = 16, top = 6;
+  const n = Math.max(days.length, 7);           // reserve at least 7 slots so 1 day isn't a giant bar
+  const slot = W / n, bw = Math.min(slot * 0.7, 34);
+  let out = "";
+  days.forEach((x, i) => {
+    const cx = slot * i + slot / 2;
+    const val = x.silent ? 0 : x.score;
+    const h = x.silent ? 3 : Math.max((H - PB - top) * val / 100, 2);
+    const y = H - PB - h;
+    const fill = x.silent ? "var(--faint)" : "var(--accent)";
+    out += `<rect x="${cx - bw / 2}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${fill}"><title>${x.d}: ${x.silent ? "silent day" : val + "%"}</title></rect>`;
+    out += `<text x="${cx}" y="${H - 4}" font-size="9" fill="var(--faint)" text-anchor="middle">${x.d}</text>`;
+  });
+  document.getElementById("barChart").innerHTML = `<svg viewBox="0 0 ${W} ${H}">${out}</svg>`;
+})();
+
+// line chart — mood & energy, non-silent days, y domain 1–5
+(function () {
+  const days = DATA.days.filter(x => !x.silent);
+  const el = document.getElementById("lineChart");
+  if (days.length === 0) { el.innerHTML = '<div class="empty">No check-ins yet.</div>'; return; }
+  const W = 400, H = 110, PL = 22, PB = 16, top = 6;
+  const n = Math.max(days.length, 7);
+  const xAt = i => PL + (W - PL - 6) * (i + 0.5) / n;
+  const yAt = v => top + (H - PB - top) * (5 - v) / 4;
+  let out = "";
+  for (let v = 1; v <= 5; v += 2)
+    out += `<text x="${PL - 5}" y="${yAt(v) + 3}" font-size="9" fill="var(--faint)" text-anchor="end">${v}</text>` +
+           `<line x1="${PL}" y1="${yAt(v)}" x2="${W - 6}" y2="${yAt(v)}" stroke="var(--line)" stroke-width="1"/>`;
+  const series = (key, color, dash) => {
+    const pts = days.map((x, i) => [xAt(i), yAt(x[key])]);
+    let s = pts.length > 1
+      ? `<polyline points="${pts.map(p => p.join(",")).join(" ")}" fill="none" stroke="${color}" stroke-width="2"${dash ? ' stroke-dasharray="4 3"' : ""}/>`
+      : "";
+    pts.forEach((p, i) => s += `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="${color}"><title>${days[i].d} ${key}: ${days[i][key]}</title></circle>`);
+    return s;
+  };
+  out += series("mood", "var(--future)", false) + series("energy", "var(--body)", true);
+  days.forEach((x, i) => out += `<text x="${xAt(i)}" y="${H - 4}" font-size="9" fill="var(--faint)" text-anchor="middle">${x.d}</text>`);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${out}</svg>`;
+})();
+
+// radar — Harada dimensions, or empty state
+(function () {
+  const el = document.getElementById("radarChart");
+  const { curr, prev } = DATA.harada;
+  if (!curr) { el.innerHTML = '<div class="empty">No snapshot yet — run /harada after ~2 weeks of daily loop.</div>'; return; }
+  const keys = Object.keys(curr);
+  const W = 400, H = 260, cx = W / 2, cy = H / 2, R = 88;
+  const pt = (i, v) => {
+    const a = -Math.PI / 2 + 2 * Math.PI * i / keys.length;
+    return [cx + Math.cos(a) * R * v / 10, cy + Math.sin(a) * R * v / 10];
+  };
+  let out = "";
+  for (let g = 2.5; g <= 10; g += 2.5)
+    out += `<polygon points="${keys.map((_, i) => pt(i, g).join(",")).join(" ")}" fill="none" stroke="var(--line)"/>`;
+  keys.forEach((k, i) => {
+    const [lx, ly] = pt(i, 12.2);
+    out += `<line x1="${cx}" y1="${cy}" x2="${pt(i, 10)[0]}" y2="${pt(i, 10)[1]}" stroke="var(--line)"/>` +
+           `<text x="${lx}" y="${ly}" font-size="8" fill="var(--muted)" text-anchor="middle">${k.replace(/([A-Z])/g, " $1").trim()}</text>`;
+  });
+  const poly = (data, color, op) =>
+    `<polygon points="${keys.map((k, i) => pt(i, data[k]).join(",")).join(" ")}" fill="${color}" fill-opacity="${op}" stroke="${color}"/>`;
+  if (prev) out += poly(prev, "var(--faint)", 0.2);
+  out += poly(curr, "var(--future)", 0.35);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${out}</svg>`;
+})();
+</script>
+</body>
+</html>
