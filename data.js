@@ -1,24 +1,26 @@
 // Life OS dashboard data — overwritten by /evening each night, then pushed.
 // Only this file changes. index.html is the frozen viewer.
 const DATA = {
-  "generated": "2026-07-03T21:30",
+  "generated": "2026-07-04T22:15",
   "today": {
-    "date": "2026-07-03",
-    "score": 100,
+    "date": "2026-07-04",
+    "score": 50,
     "tasks": [
-      { "t": "Message Sabina — uniform for Tuesday", "c": "future", "done": true },
-      { "t": "Boulder with girlfriend + friend", "c": "body", "done": true },
-      { "t": "Dishes after getting home", "c": "sustain", "done": true }
+      { "t": "Confirm family dinner time", "c": "sustain", "done": true },
+      { "t": "Job search — read postings, apply to one", "c": "future", "done": false },
+      { "t": "Gym / climbing session", "c": "body", "done": false },
+      { "t": "Buy uniform tees + body-odor product", "c": "sustain", "done": true }
     ]
   },
   "days": [
-    { "d": "07-03", "score": 100, "mood": 2, "energy": 5, "silent": false }
+    { "d": "07-03", "score": 100, "mood": 2, "energy": 5, "silent": false },
+    { "d": "07-04", "score": 50, "mood": 3, "energy": 3, "silent": false }
   ],
   "streaks": {
-    "checkin": { "current": 1, "best": 1 },
-    "body": { "current": 1, "best": 1 },
-    "sustain": { "current": 1, "best": 1 },
-    "future": { "current": 1, "best": 1 }
+    "checkin": { "current": 2, "best": 2 },
+    "body": { "current": 0, "best": 1 },
+    "sustain": { "current": 2, "best": 2 },
+    "future": { "current": 0, "best": 1 }
   },
   "harada": { "prev": null, "curr": null, "dims": [] }
 };
